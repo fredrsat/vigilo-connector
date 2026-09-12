@@ -79,7 +79,14 @@ maskin uten Vigilo-appen), der du er innlogget hos Vigilo:
 
 1. Åpne **DevTools → Network**, naviger til den utskrevne URL-en.
 2. Høyreklikk `authorize`-requesten → **Copy → Copy as cURL**.
-3. Lim hele cURL-en inn i terminalen på serveren og avslutt med **Ctrl-D**.
+3. Lim hele cURL-en inn i terminalen og avslutt med en linje `END` (eller Ctrl-D).
+
+Alternativt kan cURL-en leses fra fil eller pipe (mer robust for store blokker):
+
+```bash
+.venv/bin/vigilo-login --from-curl curl.txt      # fra fil
+pbpaste | ssh mini '~/Code/vigilo-connector/.venv/bin/vigilo-login --from-curl'   # pipe over SSH
+```
 
 Verktøyet henter sesjonscookiene ut av cURL-en, gjør authorize-kallet selv og
 fanger koden fra redirecten — ingen manuell jakt på `app://`-adressen. Nettleser

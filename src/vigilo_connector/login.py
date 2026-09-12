@@ -89,7 +89,28 @@ def _finish(code: str) -> None:
     print(f"Innlogging OK — fant {len(children)} barn: {', '.join(names)}")
 
 
-def _from_curl() -> None:
+def _read_curl_input(args: list[str]) -> str:
+    """Les cURL-teksten fra fil-argument, pipe, eller interaktiv innliming.
+
+    Interaktivt avsluttes innlimingen med en linje `END` (eller Ctrl-D) — mer
+    robust enn Ctrl-D alene når man limer store blokker over SSH.
+    """
+    paths = [a for a in args if not a.startswith("-")]
+    if paths:
+        with open(paths[0], encoding="utf-8") as f:
+            return f.read()
+    if not sys.stdin.isatty():  # pipet inn, f.eks. `cat curl.txt | vigilo-login --from-curl`
+        return sys.stdin.read()
+    print("Lim inn hele cURL-en, og skriv END på en egen linje (eller trykk Ctrl-D):\n")
+    lines: list[str] = []
+    for line in sys.stdin:
+        if line.strip() == "END":
+            break
+        lines.append(line)
+    return "".join(lines)
+
+
+def _from_curl(args: list[str]) -> None:
     try:
         auth.authorize_url("probe")  # tidlig feil hvis client_id mangler
     except auth.AuthError as e:
@@ -99,10 +120,14 @@ def _from_curl() -> None:
         "naviger til denne URL-en, høyreklikk 'authorize'-requesten → Copy as cURL:\n"
     )
     print(f"  {auth.authorize_url(secrets.token_urlsafe(16))}\n")
-    print("Lim inn hele cURL-en under og avslutt med Ctrl-D:\n")
-    curl = sys.stdin.read()
+    curl = _read_curl_input(args)
+    if not curl.strip():
+        sys.exit("Fikk ingen cURL-tekst. Prøv igjen, eller pipe inn en fil.")
     cookie_header = cookies_from_curl(curl)
-    code = auth.code_from_cookies(cookie_header)
+    try:
+        code = auth.code_from_cookies(cookie_header)
+    except auth.AuthError as e:
+        sys.exit(str(e))
     _finish(code)
 
 
@@ -125,8 +150,9 @@ def _interactive() -> None:
 
 
 def main() -> None:
-    if "--from-curl" in sys.argv[1:]:
-        _from_curl()
+    args = sys.argv[1:]
+    if "--from-curl" in args:
+        _from_curl([a for a in args if a != "--from-curl"])
     else:
         _interactive()
 
