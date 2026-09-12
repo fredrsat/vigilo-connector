@@ -6,6 +6,7 @@ fravær) legges til her etter hvert som de kartlegges — bruk `get()` /
 MCP-verktøyet `api_get` til å utforske.
 """
 
+import io
 from datetime import date, timedelta
 
 import httpx
@@ -18,6 +19,14 @@ def iso_week(d: date | None = None) -> str:
     """ISO-uke på formatet Vigilo bruker, f.eks. "2026-38"."""
     y, w, _ = (d or date.today()).isocalendar()
     return f"{y}-{w:02d}"
+
+
+def _pdf_to_text(data: bytes) -> str:
+    from pypdf import PdfReader
+
+    reader = PdfReader(io.BytesIO(data))
+    parts = [(page.extract_text() or "").strip() for page in reader.pages]
+    return "\n\n".join(p for p in parts if p).strip()
 
 
 class VigiloClient:
@@ -204,6 +213,53 @@ class VigiloClient:
 
     # TODO(kartlegging): selve karakter-/vurderings-endepunktet laster først
     # etter valg av skoleår/termin i Vurdering-fanen — sniff det med web_api_get.
+
+    # --- Vedlegg (f.eks. ukeplan-PDF i en melding) ----------------------
+    # Meldinger fra app-gatewayen (get_thread) har vedlegg med en ferdig-signert
+    # blob-URL (Azure SAS, gyldig ~6 t) — kan lastes ned direkte uten auth.
+    # Hent tråden fersk rett før nedlasting, ellers kan URL-en være utløpt.
+
+    def read_thread_attachments(self, thread_uid: str, max_chars: int = 40000) -> list:
+        """Last ned og les vedleggene i en meldingstråd.
+
+        Returnerer én post per vedlegg: {name, mimeType, text} for PDF/tekst, og
+        {name, mimeType, note, url} for binærformater vi ikke leser. Brukes bl.a.
+        til å lese ukeplan-PDF-er lagt ved i foreldremeldinger.
+        """
+        thread = self.get_thread(thread_uid)
+        out = []
+        for msg in thread.get("messages", []):
+            for att in msg.get("attachments", []):
+                name = att.get("name")
+                mime = att.get("mimeType", "")
+                url = att.get("url")
+                if not url:
+                    out.append({"name": name, "mimeType": mime, "note": "mangler URL"})
+                    continue
+                try:
+                    resp = httpx.get(url, timeout=60, follow_redirects=True)
+                    resp.raise_for_status()
+                    if mime == "application/pdf" or (name or "").lower().endswith(".pdf"):
+                        text = _pdf_to_text(resp.content)
+                        out.append({"name": name, "mimeType": mime, "text": text[:max_chars]})
+                    elif mime.startswith("text/"):
+                        out.append(
+                            {"name": name, "mimeType": mime, "text": resp.text[:max_chars]}
+                        )
+                    else:
+                        out.append(
+                            {
+                                "name": name,
+                                "mimeType": mime,
+                                "note": "ikke-tekstlig format — ikke lest",
+                                "url": url,
+                            }
+                        )
+                except Exception as e:  # noqa: BLE001 — surface, ikke krasj
+                    out.append(
+                        {"name": name, "mimeType": mime, "note": f"nedlasting/lesing feilet: {e}"}
+                    )
+        return out
 
     def close(self) -> None:
         self._http.close()

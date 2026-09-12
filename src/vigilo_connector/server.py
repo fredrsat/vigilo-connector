@@ -46,6 +46,19 @@ def get_message_thread(thread_uid: str) -> str:
 
 
 @mcp.tool()
+def read_message_attachments(thread_uid: str) -> str:
+    """Last ned og les vedleggene i en meldingstråd (f.eks. ukeplan-PDF).
+
+    Returnerer utdratt tekst per vedlegg. Bruk dette når en melding har vedlegg
+    (hasAttachments/attachments) og du trenger innholdet — typisk ukeplanen med
+    lekser, turer og «ta med»-beskjeder som ofte legges ved som PDF.
+    """
+    return json.dumps(
+        client().read_thread_attachments(thread_uid), ensure_ascii=False, indent=2
+    )
+
+
+@mcp.tool()
 def api_get(path: str, params_json: str = "{}") -> str:
     """Rått GET mot foreldre-API-et — for kartlegging av nye endepunkter.
 
