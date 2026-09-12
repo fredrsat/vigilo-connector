@@ -10,8 +10,9 @@ Refresh-tokens roterer ved bruk og utløper etter 30-90 dager; da må
 
 import base64
 import json
+import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 
@@ -74,6 +75,36 @@ def exchange_code(code: str) -> dict:
     return _token_request(
         {"code": code, "redirect_uri": REDIRECT_URI, "grant_type": "authorization_code"}
     )
+
+
+def code_from_cookies(cookie_header: str) -> str:
+    """Hent en fersk authorization-code ved å gjøre authorize-kallet selv med en
+    aktiv ID-porten-sesjon (cookies fra en innlogget nettleser).
+
+    Dette er headless-veien: nettleserens redirect til `app://` er usynlig, men
+    med sesjonscookiene kan vi be om authorize og lese `code` rett ut av
+    302-redirectens Location-header. Krever ingen DevTools-jakt på koden.
+    """
+    state = secrets.token_urlsafe(16)
+    r = httpx.get(
+        authorize_url(state),
+        headers={"cookie": cookie_header, "user-agent": "Mozilla/5.0"},
+        follow_redirects=False,
+        timeout=30,
+    )
+    loc = r.headers.get("location", "")
+    if not loc:
+        raise AuthError(
+            f"Authorize ga ingen redirect (HTTP {r.status_code}). Er cookiene "
+            "gyldige/ferske? Logg inn i nettleseren på nytt og kopier cURL igjen."
+        )
+    params = parse_qs(urlsplit(loc).query)
+    if params.get("state", [None])[0] not in (None, state):
+        raise AuthError("state i redirecten matcher ikke — prøv på nytt.")
+    code = params.get("code", [None])[0]
+    if not code:
+        raise AuthError(f"Fant ingen code i redirecten. Location: {loc[:200]}")
+    return code
 
 
 def refresh(refresh_token: str) -> dict:

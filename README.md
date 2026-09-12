@@ -65,6 +65,29 @@ Viktige detaljer:
   redirecten til appen, som bruker opp engangskoden.
 - Koder er engangs og kortlevde. Feiler utvekslingen: start en ny innlogging.
 
+#### Headless innlogging (SSH / server uten skjerm)
+
+På en maskin uten nettleser kan du ikke fange `app://`-redirecten lokalt. Bruk
+`--from-curl` i stedet:
+
+```bash
+.venv/bin/vigilo-login --from-curl
+```
+
+Den skriver ut en authorize-URL. Gjør så dette i en desktop-nettleser (på en
+maskin uten Vigilo-appen), der du er innlogget hos Vigilo:
+
+1. Åpne **DevTools → Network**, naviger til den utskrevne URL-en.
+2. Høyreklikk `authorize`-requesten → **Copy → Copy as cURL**.
+3. Lim hele cURL-en inn i terminalen på serveren og avslutt med **Ctrl-D**.
+
+Verktøyet henter sesjonscookiene ut av cURL-en, gjør authorize-kallet selv og
+fanger koden fra redirecten — ingen manuell jakt på `app://`-adressen. Nettleser
+og server trenger ikke være samme maskin.
+
+(Alternativt: kjør innloggingen på en maskin med nettleser og kopier
+`~/.config/vigilo-connector/tokens.json` over til serveren.)
+
 ### 3. Registrer MCP-serveren i Claude Code
 
 ```bash
