@@ -1,0 +1,14 @@
+# Hemmeligheter og tokens skal aldri inn i repoet
+.env
+*.env
+tokens.json
+config.json
+
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.egg-info/
+
+# Lokale Claude Code-innstillinger
+.claude/settings.local.json
