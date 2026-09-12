@@ -96,6 +96,30 @@ claude mcp add vigilo -- /path/to/vigilo-connector/.venv/bin/vigilo-mcp
 
 (Bytt `/path/to/vigilo-connector` med din egen sti til repoet.)
 
+#### Alternativ: JSON-konfig (import / manuell registrering)
+
+Klienter som importerer MCP-servere fra JSON kan bruke denne blokken:
+
+```json
+{
+  "mcpServers": {
+    "vigilo": {
+      "command": "/path/to/vigilo-connector/.venv/bin/vigilo-mcp"
+    }
+  }
+}
+```
+
+Skal du legge den til manuelt i en klient (MCP → sett opp manuelt), bruk
+stdio-transport med samme kommando:
+
+```json
+{
+  "transport": "stdio",
+  "command": "/path/to/vigilo-connector/.venv/bin/vigilo-mcp"
+}
+```
+
 ## Verktøy
 
 | Verktøy | Gjør |
