@@ -29,6 +29,31 @@ def _pdf_to_text(data: bytes) -> str:
     return "\n\n".join(p for p in parts if p).strip()
 
 
+def _docx_to_text(data: bytes) -> str:
+    from docx import Document
+
+    doc = Document(io.BytesIO(data))
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells]
+            if any(cells):
+                parts.append(" | ".join(cells))
+    return "\n".join(parts).strip()
+
+
+def _attachment_to_text(data: bytes, mime: str, name: str | None) -> str | None:
+    """Trekk ut tekst fra et vedlegg, eller None for formater vi ikke leser."""
+    n = (name or "").lower()
+    if mime == "application/pdf" or n.endswith(".pdf"):
+        return _pdf_to_text(data)
+    if "wordprocessingml" in mime or n.endswith(".docx"):
+        return _docx_to_text(data)
+    if mime.startswith("text/"):
+        return data.decode("utf-8", "replace")
+    return None
+
+
 class VigiloClient:
     def __init__(self, store: TokenStore | None = None):
         self._store = store or TokenStore()
@@ -239,14 +264,8 @@ class VigiloClient:
                 try:
                     resp = httpx.get(url, timeout=60, follow_redirects=True)
                     resp.raise_for_status()
-                    if mime == "application/pdf" or (name or "").lower().endswith(".pdf"):
-                        text = _pdf_to_text(resp.content)
-                        out.append({"name": name, "mimeType": mime, "text": text[:max_chars]})
-                    elif mime.startswith("text/"):
-                        out.append(
-                            {"name": name, "mimeType": mime, "text": resp.text[:max_chars]}
-                        )
-                    else:
+                    text = _attachment_to_text(resp.content, mime, name)
+                    if text is None:
                         out.append(
                             {
                                 "name": name,
@@ -255,10 +274,44 @@ class VigiloClient:
                                 "url": url,
                             }
                         )
+                    else:
+                        out.append({"name": name, "mimeType": mime, "text": text[:max_chars]})
                 except Exception as e:  # noqa: BLE001 — surface, ikke krasj
                     out.append(
                         {"name": name, "mimeType": mime, "note": f"nedlasting/lesing feilet: {e}"}
                     )
+        return out
+
+    def read_post_attachments(self, post_id: str, max_chars: int = 40000) -> list:
+        """Last ned og les vedleggene i et oppslag/nyhetspost (news_feed).
+
+        Ukeplanen legges typisk ut her som en fler-ukers PDF (f.eks. «uke 36-38»),
+        ikke som en meldingstråd. Vedleggene lastes ned fra web-API-et med auth
+        (ikke SAS-URL som i meldinger). `post_id` er `id`-feltet fra `news_feed`.
+        """
+        post = self.web_get_json(f"/api/posts/{post_id}")
+        out = []
+        for att in post.get("attachments", []):
+            name = att.get("name")
+            mime = att.get("mimeType", "")
+            aid = att.get("id")
+            if not aid:
+                out.append({"name": name, "mimeType": mime, "note": "mangler id"})
+                continue
+            try:
+                r = self.web_get(f"/api/posts/{post_id}/attachments/{aid}")
+                r.raise_for_status()
+                text = _attachment_to_text(r.content, mime, name)
+                if text is None:
+                    out.append(
+                        {"name": name, "mimeType": mime, "note": "ikke-tekstlig format — ikke lest"}
+                    )
+                else:
+                    out.append({"name": name, "mimeType": mime, "text": text[:max_chars]})
+            except Exception as e:  # noqa: BLE001 — surface, ikke krasj
+                out.append(
+                    {"name": name, "mimeType": mime, "note": f"nedlasting/lesing feilet: {e}"}
+                )
         return out
 
     def close(self) -> None:

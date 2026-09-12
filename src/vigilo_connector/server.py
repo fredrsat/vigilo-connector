@@ -59,6 +59,17 @@ def read_message_attachments(thread_uid: str) -> str:
 
 
 @mcp.tool()
+def read_post_attachments(post_id: str) -> str:
+    """Last ned og les vedleggene i et oppslag/«Siste nytt»-post (PDF/docx→tekst).
+
+    Ukeplanen legges typisk ut som et oppslag med et fler-ukers PDF-vedlegg
+    (f.eks. «uke 36-38»), IKKE som en meldingstråd. Bruk `id`-feltet fra
+    `news_feed` som post_id. Returnerer utdratt tekst per vedlegg.
+    """
+    return json.dumps(client().read_post_attachments(post_id), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
 def api_get(path: str, params_json: str = "{}") -> str:
     """Rått GET mot foreldre-API-et — for kartlegging av nye endepunkter.
 

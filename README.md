@@ -134,7 +134,8 @@ stdio-transport med samme kommando:
 | `web_list_children` | Barna dine med `childId` **og** `organizationalUnitId` (skole/klasse) |
 | `list_children` | Barna via app-gatewayen (kun `childId`) |
 | `list_message_threads` / `get_message_thread` | Beskjedtråder og meldinger (app-gateway) |
-| `read_message_attachments` | Last ned og les vedlegg i en tråd (PDF→tekst) — f.eks. ukeplanen |
+| `read_message_attachments` | Last ned og les vedlegg i en meldingstråd (PDF/docx→tekst) |
+| `read_post_attachments` | Last ned og les vedlegg i et oppslag/«Siste nytt» (PDF/docx→tekst) — her ligger ofte ukeplanen |
 | `news_feed` | «Siste nytt» / oppslag for et barn |
 | `absences` | Fravær for et barn |
 | `consent_forms` | Samtykkeskjemaer (krever `organizationalUnitId`) |
