@@ -1,0 +1,23 @@
+# vigilo-connector
+
+> Personlig MCP-server mot Vigilos uoffisielle foreldre-API, slik at AI-agenter kan lese beskjeder, timeplan, fravær, samtykker og nyheter for egne barn.
+
+Connectoren snakker med to Vigilo-endepunkter med samme OAuth2-token: app-gatewayen (beskjeder/tråder) og web-foreldreportalen (timeplan, fravær, samtykker, nyheter). API-et er reverse-engineert og kan endres uten varsel; verktøyet er kun ment for personlig bruk med egen foreldretilgang. Client-credentials må hentes fra Vigilos Android-APK, og innloggingen federerer via ID-porten (`vigilo-login`, med `--from-curl` for headless bruk).
+
+Teknisk: Python 3.11+, `mcp`-SDK-en over stdio, `httpx` for HTTP, `pypdf`/`python-docx` for vedleggslesing. Tokens og config lagres lokalt i `~/.config/vigilo-connector/`. To CLI-entrypoints: `vigilo-login` (auth) og `vigilo-mcp` (MCP-serveren).
+
+## Dokumentasjon
+
+- [README](https://github.com/fredrsat/vigilo-connector/blob/main/README.md): Oppsett (APK-nøkler, innlogging, MCP-registrering), verktøyoversikt og kartlagte web-endepunkter
+
+## Kildekode
+
+- [server.py](https://github.com/fredrsat/vigilo-connector/blob/main/src/vigilo_connector/server.py): MCP-serveren — definerer alle verktøyene
+- [client.py](https://github.com/fredrsat/vigilo-connector/blob/main/src/vigilo_connector/client.py): HTTP-klient mot begge Vigilo-API-ene
+- [auth.py](https://github.com/fredrsat/vigilo-connector/blob/main/src/vigilo_connector/auth.py): OAuth2-tokenhåndtering og refresh
+- [login.py](https://github.com/fredrsat/vigilo-connector/blob/main/src/vigilo_connector/login.py): Interaktiv/headless ID-porten-innlogging
+- [config.py](https://github.com/fredrsat/vigilo-connector/blob/main/src/vigilo_connector/config.py): Lokal config- og tokenlagring
+
+## Valgfritt
+
+- [pyproject.toml](https://github.com/fredrsat/vigilo-connector/blob/main/pyproject.toml): Avhengigheter og CLI-entrypoints
